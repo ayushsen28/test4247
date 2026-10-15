@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CampusBites — College Canteen Ordering System</title>
+<meta name="description" content="Premium college canteen ordering platform with 3D interface, real-time order tracking, and admin management."/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0a0f;
+    --bg-2:#111118;
+    --surface:#16161f;
+    --surface-2:#1e1e2a;
+    --border:rgba(255,255,255,.08);
+    --text:#f5f5f7;
+    --muted:#8b8b95;
+    --accent:#ff6b35;
+    --accent-2:#ffb627;
+    --accent-3:#e63946;
+    --success:#22c55e;
+    --danger:#ef4444;
+    --grad:linear-gradient(135deg,#ff6b35 0%,#ffb627 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    overflow-x:hidden;
+    min-height:100vh;
+  }
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;letter-spacing:-.02em}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track{background:var(--bg-2)}
+  ::-webkit-scrollbar-thumb{background:linear-gradient(var(--accent),var(--accent-2));border-radius:4px}
+
+  /* Background grid */
+  .bg-grid{
+    background-image:
+      linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+    background-size:60px 60px;
+  }
+  .bg-radial{
+    background:radial-gradient(ellipse at top,rgba(255,107,53,.15),transparent 50%),
+               radial-gradient(ellipse at bottom right,rgba(230,57,70,.1),transparent 50%);
+  }
+
+  /* Glass */
+  .glass{
+    background:rgba(22,22,31,.6);
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--border);
+  }
+  .glass-strong{
+    background:rgba(22,22,31,.85);
+    backdrop-filter:blur(30px);
+    border:1px solid var(--border);
+  }
+
+  /* Gradient text */
+  .grad-text{
+    background:var(--grad);
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+  }
+
+  /* Buttons */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+    padding:.75rem 1.5rem;border-radius:12px;font-weight:600;font-size:.9rem;
+    cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);
+    border:none;outline:none;white-space:nowrap;
+  }
+  .btn-primary{background:var(--grad);color:#fff;box-shadow:0 8px 24px rgba(255,107,53,.3)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(255,107,53,.5)}
+  .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+  .btn-ghost:hover{background:var(--surface);border-color:var(--accent)}
+  .btn-danger{background:var(--danger);color:#fff}
+  .btn-success{background:var(--success);color:#fff}
+  .btn-sm{padding:.5rem 1rem;font-size:.8rem;border-radius:8px}
+
+  /* Inputs */
+  .input{
+    width:100%;padding:.85rem 1rem;background:var(--surface);
+    border:1px solid var(--border);border-radius:10px;color:var(--text);
+    font-size:.9rem;transition:all .2s;
+  }
+  .input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,107,53,.15)}
+  .label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:.4rem;font-weight:500}
+
+  /* Hero 3D */
+  #hero-canvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}
+  .hero-content{position:relative;z-index:2}
+
+  /* Reveal animations */
+  .reveal{opacity:0;transform:translateY(40px);transition:all .8s cubic-bezier(.16,1,.3,1)}
+  .reveal.visible{opacity:1;transform:translateY(0)}
+  .reveal-left{opacity:0;transform:translateX(-40px);transition:all .8s cubic-bezier(.16,1,.3,1)}
+  .reveal-left.visible{opacity:1;transform:translateX(0)}
+  .reveal-right{opacity:0;transform:translateX(40px);transition:all .8s cubic-bezier(.16,1,.3,1)}
+  .reveal-right.visible{opacity:1;transform:translateX(0)}
+  .reveal-scale{opacity:0;transform:scale(.9);transition:all .8s cubic-bezier(.16,1,.3,1)}
+  .reveal-scale.visible{opacity:1;transform:scale(1)}
+
+  /* Floating animation */
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+  .float{animation:float 4s ease-in-out infinite}
+  @keyframes pulse-glow{0%,100%{box-shadow:0 0 20px rgba(255,107,53,.3)}50%{box-shadow:0 0 40px rgba(255,107,53,.6)}}
+  .pulse-glow{animation:pulse-glow 2s ease-in-out infinite}
+
+  /* Product card */
+  .product-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:20px;
+    overflow:hidden;transition:all .4s cubic-bezier(.4,0,.2,1);cursor:pointer;position:relative;
+  }
+  .product-card:hover{transform:translateY(-8px);border-color:rgba(255,107,53,.4);box-shadow:0 20px 60px rgba(255,107,53,.15)}
+  .product-card .img-wrap{
+    height:180px;background:linear-gradient(135deg,#1a1a24,#0f0f17);
+    display:flex;align-items:center;justify-content:center;font-size:5rem;
+    position:relative;overflow:hidden;
+  }
+  .product-card .img-wrap::after{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(circle at center,transparent 30%,rgba(0,0,0,.4) 100%);
+  }
+  .product-card .emoji{transition:transform .4s;filter:drop-shadow(0 10px 20px rgba(0,0,0,.5))}
+  .product-card:hover .emoji{transform:scale(1.2) rotate(-5deg)}
+  .badge{
+    position:absolute;top:12px;right:12px;padding:.3rem .7rem;
+    background:var(--grad);color:#fff;font-size:.7rem;font-weight:700;
+    border-radius:20px;z-index:2;letter-spacing:.05em;
+  }
+
+  /* Cart sidebar */
+  .cart-sidebar{
+    position:fixed;top:0;right:0;width:420px;max-width:100vw;height:100vh;
+    background:var(--bg-2);border-left:1px solid var(--border);
+    transform:translateX(100%);transition:transform .4s cubic-bezier(.4,0,.2,1);
+    z-index:100;display:flex;flex-direction:column;
+  }
+  .cart-sidebar.open{transform:translateX(0)}
+  .cart-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+    opacity:0;pointer-events:none;transition:opacity .3s;z-index:99;
+  }
+  .cart-overlay.open{opacity:1;pointer-events:all}
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);
+    display:none;align-items:center;justify-content:center;z-index:200;padding:1rem;
+  }
+  .modal-overlay.open{display:flex;animation:fadeIn .3s}
+  .modal{
+    background:var(--bg-2);border:1px solid var(--border);border-radius:20px;
+    padding:2rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;
+    animation:slideUp .4s cubic-bezier(.16,1,.3,1);
+  }
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(30px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+  /* Toast */
+  .toast-container{position:fixed;top:20px;right:20px;z-index:300;display:flex;flex-direction:column;gap:.5rem}
+  .toast{
+    background:var(--surface-2);border:1px solid var(--border);border-radius:12px;
+    padding:1rem 1.25rem;min-width:280px;display:flex;align-items:center;gap:.75rem;
+    box-shadow:0 10px 40px rgba(0,0,0,.4);animation:slideInRight .4s;
+  }
+  .toast.success{border-left:4px solid var(--success)}
+  .toast.error{border-left:4px solid var(--danger)}
+  .toast.info{border-left:4px solid var(--accent)}
+  @keyframes slideInRight{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+  .toast.removing{animation:slideOutRight .3s forwards}
+  @keyframes slideOutRight{to{transform:translateX(120%);opacity:0}}
+
+  /* Nav */
+  .nav-link{position:relative;padding:.5rem .25rem;font-weight:500;color:var(--muted);transition:color .2s;cursor:pointer}
+  .nav-link:hover,.nav-link.active{color:var(--text)}
+  .nav-link.active::after{
+    content:'';position:absolute;bottom:-4px;left:0;right:0;height:2px;
+    background:var(--grad);border-radius:2px;
+  }
+
+  /* Category pill */
+  .cat-pill{
+    padding:.6rem 1.2rem;background:var(--surface);border:1px solid var(--border);
+    border-radius:100px;font-size:.85rem;font-weight:500;cursor:pointer;
+    transition:all .2s;white-space:nowrap;
+  }
+  .cat-pill:hover{border-color:var(--accent)}
+  .cat-pill.active{background:var(--grad);border-color:transparent;color:#fff}
+
+  /* Status badges */
+  .status{padding:.3rem .7rem;border-radius:20px;font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+  .status-pending{background:rgba(251,191,36,.15);color:#fbbf24}
+  .status-preparing{background:rgba(59,130,246,.15);color:#60a5fa}
+  .status-ready{background:rgba(34,197,94,.15);color:#4ade80}
+  .status-delivered{background:rgba(139,92,246,.15);color:#a78bfa}
+  .status-cancelled{background:rgba(239,68,68,.15);color:#f87171}
+
+  /* Stat card */
+  .stat-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:1.5rem;position:relative;overflow:hidden;transition:all .3s;
+  }
+  .stat-card:hover{border-color:rgba(255,107,53,.3);transform:translateY(-2px)}
+  .stat-card::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);
+  }
+
+  /* Table */
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:1rem;font-size:.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;background:var(--bg-2);border-bottom:1px solid var(--border)}
+  td{padding:1rem;border-bottom:1px solid var(--border);font-size:.9rem}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,.02)}
+
+  /* Tabs */
+  .tab{padding:.75rem 1.25rem;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--text);border-color:var(--accent)}
+
+  /* Page transitions */
+  .page{display:none;animation:pageIn .5s}
+  .page.active{display:block}
+  @keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+  /* Quantity controls */
+  .qty-control{display:inline-flex;align-items:center;gap:.5rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.25rem}
+  .qty-btn{width:28px;height:28px;border-radius:6px;background:var(--surface-2);border:none;color:var(--text);cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .2s}
+  .qty-btn:hover{background:var(--accent);color:#fff}
+  .qty-val{min-width:24px;text-align:center;font-weight:600;font-size:.9rem}
+
+  /* Loader */
+  .loader{
+    width:40px;height:40px;border:3px solid var(--border);
+    border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Counter animation */
+  .counter{font-variant-numeric:tabular-nums}
+
+  /* Mobile */
+  @media (max-width:768px){
+    .cart-sidebar{width:100%}
+    .hero-title{font-size:2.5rem !important}
+  }
+
+  /* Marquee */
+  .marquee{display:flex;gap:3rem;animation:marquee 30s linear infinite}
+  @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+  /* Progress bar for order tracking */
+  .progress-track{height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--grad);transition:width .6s cubic-bezier(.4,0,.2,1)}
+
+  /* Chart */
+  .chart-bar{background:var(--surface-2);border-radius:6px 6px 0 0;transition:height .8s cubic-bezier(.4,0,.2,1)}
+
+  /* Skeleton */
+  .skeleton{background:linear-gradient(90deg,var(--surface) 25%,var(--surface-2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body class="bg-grid">
+
+<!-- ============ NAVBAR ============ -->
+<nav class="fixed top-0 left-0 right-0 z-50 glass-strong" id="navbar">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3 cursor-pointer" onclick="router.go('home')">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:var(--grad)">🍔</div>
+      <div>
+        <div class="font-bold text-lg leading-none">Campus<span class="grad-text">Bites</span></div>
+        <div class="text-xs text-gray-500 leading-none mt-1">College Canteen</div>
+      </div>
+    </div>
+    <div class="hidden md:flex items-center gap-8">
+      <span class="nav-link" data-nav="home" onclick="router.go('home')">Home</span>
+      <span class="nav-link" data-nav="menu" onclick="router.go('menu')">Menu</span>
+      <span class="nav-link" data-nav="orders" onclick="router.go('orders')">My Orders</span>
+      <span class="nav-link" data-nav="about" onclick="router.go('about')">About</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="btn btn-ghost btn-sm relative" onclick="cart.open()">
+        🛒 <span id="cart-count" class="text-xs">0</span>
+      </button>
+      <div id="auth-area"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ TOAST CONTAINER ============ -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ============ HOME PAGE ============ -->
+<section class="page active" id="page-home">
+  <!-- HERO -->
+  <div class="relative min-h-screen flex items-center overflow-hidden bg-radial">
+    <canvas id="hero-canvas"></canvas>
+    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0a0a0f] z-[2]"></div>
+    <div class="hero-content max-w-7xl mx-auto px-6 py-32 w-full">
+      <div class="max-w-3xl">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6 reveal">
+          <span class="w-2 h-2 rounded-full bg-green-400 pulse-glow"></span>
+          <span class="text-sm text-gray-300">Live • Serving 2,400+ students</span>
+        </div>
+        <h1 class="hero-title text-6xl md:text-7xl font-bold leading-[1.05] mb-6 reveal" style="transition-delay:.1s">
+          Campus food,<br/>
+          <span class="grad-text">reimagined in 3D.</span>
+        </h1>
+        <p class="text-lg text-gray-400 mb-8 max-w-xl reveal" style="transition-delay:.2s">
+          Skip the queue. Order your favorite meals from the college canteen in seconds.
+          Real-time tracking, secure payments, and lightning-fast delivery to your classroom.
+        </p>
+        <div class="flex flex-wrap gap-4 reveal" style="transition-delay:.3s">
+          <button class="btn btn-primary" onclick="router.go('menu')">
+            Explore Menu →
+          </button>
+          <button class="btn btn-ghost" onclick="router.go('about')">
+            How it works
+          </button>
+        </div>
+        <!-- Stats -->
+        <div class="grid grid-cols-3 gap-8 mt-16 max-w-lg reveal" style="transition-delay:.4s">
+          <div>
+            <div class="text-3xl font-bold grad-text counter" data-target="120">0</div>
+            <div class="text-xs text-gray-500 mt-1">Menu Items</div>
+          </div>
+          <div>
+            <div class="text-3xl font-bold grad-text counter" data-target="2400">0</div>
+            <div class="text-xs text-gray-500 mt-1">Happy Students</div>
+          </div>
+          <div>
+            <div class="text-3xl font-bold grad-text counter" data-target="15">0</div>
+            <div class="text-xs text-gray-500 mt-1">Min Avg Delivery</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MARQUEE -->
+  <div class="py-6 border-y border-white/5 overflow-hidden bg-[#0a0a0f]">
+    <div class="marquee whitespace-nowrap text-2xl font-bold text-gray-700">
+      <span>🍕 PIZZA</span><span>•</span><span>🍔 BURGERS</span><span>•</span>
+      <span>🌮 TACOS</span><span>•</span><span>🍜 NOODLES</span><span>•</span>
+      <span>🥗 SALADS</span><span>•</span><span>☕ COFFEE</span><span>•</span>
+      <span>🍰 DESSERTS</span><span>•</span><span>🥤 BEVERAGES</span><span>•</span>
+      <span>🍕 PIZZA</span><span>•</span><span>🍔 BURGERS</span><span>•</span>
+      <span>🌮 TACOS</span><span>•</span><span>🍜 NOODLES</span><span>•</span>
+      <span>🥗 SALADS</span><span>•</span><span>☕ COFFEE</span><span>•</span>
+      <span>🍰 DESSERTS</span><span>•</span><span>🥤 BEVERAGES</span><span>•</span>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section class="py-24 px-6 max-w-7xl mx-auto">
+    <div class="text-center mb-16 reveal">
+      <div class="inline-block px-4 py-1.5 rounded-full glass text-xs text-gray-400 mb-4">WHY CAMPUSBITES</div>
+      <h2 class="text-4xl md:text-5xl font-bold mb-4">Built for <span class="grad-text">busy campus life</span></h2>
+      <p class="text-gray-400 max-w-2xl mx-auto">Everything you need to fuel your day — from between-class snacks to full meals, delivered right to your lecture hall.</p>
+    </div>
+    <div class="grid md:grid-cols-3 gap-6">
+      <div class="stat-card reveal" style="transition-delay:.1s">
+        <div class="text-4xl mb-4">⚡</div>
+        <h3 class="text-xl font-bold mb-2">Lightning Fast</h3>
+        <p class="text-gray-400 text-sm">Average 15-minute delivery. Track every step from kitchen to classroom in real-time.</p>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.2s">
+        <div class="text-4xl mb-4">🔒</div>
+        <h3 class="text-xl font-bold mb-2">Secure & Private</h3>
+        <p class="text-gray-400 text-sm">Bank-grade encryption. Your data stays yours. Hashed passwords, JWT tokens, CSRF protection.</p>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.3s">
+        <div class="text-4xl mb-4">📱</div>
+        <h3 class="text-xl font-bold mb-2">Mobile-First</h3>
+        <p class="text-gray-400 text-sm">Responsive design that feels native on every device. Order from anywhere on campus.</p>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.4s">
+        <div class="text-4xl mb-4">🎯</div>
+        <h3 class="text-xl font-bold mb-2">Smart Recommendations</h3>
+        <p class="text-gray-400 text-sm">AI-powered suggestions based on your order history and campus trends.</p>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.5s">
+        <div class="text-4xl mb-4">💳</div>
+        <h3 class="text-xl font-bold mb-2">Multiple Payments</h3>
+        <p class="text-gray-400 text-sm">Campus card, UPI, wallets, or cash on delivery. Your choice, your convenience.</p>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.6s">
+        <div class="text-4xl mb-4">🏆</div>
+        <h3 class="text-xl font-bold mb-2">Loyalty Rewards</h3>
+        <p class="text-gray-400 text-sm">Earn points on every order. Redeem for free meals, discounts, and exclusive drops.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- POPULAR ITEMS -->
+  <section class="py-24 px-6 max-w-7xl mx-auto">
+    <div class="flex items-end justify-between mb-12 reveal">
+      <div>
+        <div class="inline-block px-4 py-1.5 rounded-full glass text-xs text-gray-400 mb-4">TRENDING NOW</div>
+        <h2 class="text-4xl md:text-5xl font-bold">Most <span class="grad-text">ordered</span> this week</h2>
+      </div>
+      <button class="btn btn-ghost hidden md:inline-flex" onclick="router.go('menu')">View all →</button>
+    </div>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6" id="popular-grid"></div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-24 px-6">
+    <div class="max-w-5xl mx-auto glass rounded-3xl p-12 md:p-16 text-center relative overflow-hidden reveal-scale">
+      <div class="absolute -top-20 -right-20 w-64 h-64 rounded-full opacity-20" style="background:var(--grad);filter:blur(80px)"></div>
+      <div class="absolute -bottom-20 -left-20 w-64 h-64 rounded-full opacity-20" style="background:var(--grad);filter:blur(80px)"></div>
+      <h2 class="text-4xl md:text-5xl font-bold mb-4 relative">Hungry yet?</h2>
+      <p class="text-gray-400 mb-8 max-w-xl mx-auto relative">Join thousands of students already ordering smarter. Your next meal is just a click away.</p>
+      <button class="btn btn-primary relative" onclick="router.go('menu')">Start ordering →</button>
+    </div>
+  </section>
+</section>
+
+<!-- ============ MENU PAGE ============ -->
+<section class="page" id="page-menu">
+  <div class="pt-32 pb-24 px-6 max-w-7xl mx-auto">
+    <div class="mb-12 reveal">
+      <h1 class="text-5xl font-bold mb-4">Our <span class="grad-text">Menu</span></h1>
+      <p class="text-gray-400">Fresh, fast, and made with love. Browse our full selection below.</p>
+    </div>
+
+    <!-- Search + filters -->
+    <div class="flex flex-col md:flex-row gap-4 mb-8 reveal">
+      <div class="relative flex-1">
+        <input type="text" id="search-input" class="input pl-11" placeholder="Search dishes, categories..."/>
+        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">🔍</span>
+      </div>
+      <select id="sort-select" class="input md:w-48">
+        <option value="popular">Most Popular</option>
+        <option value="price-asc">Price: Low to High</option>
+        <option value="price-desc">Price: High to Low</option>
+        <option value="name">Alphabetical</option>
+      </select>
+    </div>
+
+    <!-- Categories -->
+    <div class="flex gap-2 overflow-x-auto pb-4 mb-8 reveal" id="categories-bar"></div>
+
+    <!-- Products grid -->
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="products-grid"></div>
+  </div>
+</section>
+
+<!-- ============ ORDERS PAGE ============ -->
+<section class="page" id="page-orders">
+  <div class="pt-32 pb-24 px-6 max-w-7xl mx-auto">
+    <div class="mb-12 reveal">
+      <h1 class="text-5xl font-bold mb-4">My <span class="grad-text">Orders</span></h1>
+      <p class="text-gray-400">Track your current and past orders in real-time.</p>
+    </div>
+    <div id="orders-list"></div>
+  </div>
+</section>
+
+<!-- ============ ABOUT PAGE ============ -->
+<section class="page" id="page-about">
+  <div class="pt-32 pb-24 px-6 max-w-5xl mx-auto">
+    <div class="reveal">
+      <h1 class="text-5xl font-bold mb-6">About <span class="grad-text">CampusBites</span></h1>
+      <p class="text-xl text-gray-400 mb-12">We're a team of students who got tired of waiting in canteen lines. So we built something better.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8 mb-16">
+      <div class="stat-card reveal-left">
+        <div class="text-3xl mb-3">🎯</div>
+        <h3 class="text-2xl font-bold mb-3">Our Mission</h3>
+        <p class="text-gray-400">Make campus dining effortless, enjoyable, and accessible to every student — no matter how packed their schedule is.</p>
+      </div>
+      <div class="stat-card reveal-right">
+        <div class="text-3xl mb-3">💡</div>
+        <h3 class="text-2xl font-bold mb-3">Our Story</h3>
+        <p class="text-gray-400">Started in 2024 as a weekend hackathon project. Now serving 2,400+ students across 3 campuses with 50,000+ orders delivered.</p>
+      </div>
+    </div>
+
+    <h2 class="text-3xl font-bold mb-8 reveal">How it works</h2>
+    <div class="grid md:grid-cols-4 gap-6">
+      <div class="stat-card reveal" style="transition-delay:.1s">
+        <div class="text-2xl font-bold grad-text mb-2">01</div>
+        <h4 class="font-bold mb-2">Browse</h4>
+        <p class="text-sm text-gray-400">Explore our menu and find what you're craving.</p>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.2s">
+        <div class="text-2xl font-bold grad-text mb-2">02</div>
+        <h4 class="font-bold mb-2">Order</h4>
+        <p class="text-sm text-gray-400">Add to cart and checkout in seconds.</p>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.3s">
+        <div class="text-2xl font-bold grad-text mb-2">03</div>
+        <h4 class="font-bold mb-2">Track</h4>
+        <p class="text-sm text-gray-400">Watch your order being prepared in real-time.</p>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.4s">
+        <div class="text-2xl font-bold grad-text mb-2">04</div>
+        <h4 class="font-bold mb-2">Enjoy</h4>
+        <p class="text-sm text-gray-400">Pick up at the counter or get it delivered.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ADMIN DASHBOARD ============ -->
+<section class="page" id="page-admin">
+  <div class="pt-28 pb-24 px-6 max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-8 reveal">
+      <div>
+        <div class="inline-block px-4 py-1.5 rounded-full glass text-xs text-gray-400 mb-2">ADMIN PANEL</div>
+        <h1 class="text-4xl font-bold">Dashboard</h1>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost btn-sm" onclick="admin.exportData()">📊 Export</button>
+        <button class="btn btn-primary btn-sm" onclick="admin.openAddProduct()">+ Add Product</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="admin-stats"></div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 border-b border-white/10 mb-6 overflow-x-auto">
+      <div class="tab active" data-tab="orders" onclick="admin.switchTab('orders')">Orders</div>
+      <div class="tab" data-tab="products" onclick="admin.switchTab('products')">Products</div>
+      <div class="tab" data-tab="users" onclick="admin.switchTab('users')">Users</div>
+      <div class="tab" data-tab="analytics" onclick="admin.switchTab('analytics')">Analytics</div>
+    </div>
+
+    <div id="admin-content"></div>
+  </div>
+</section>
+
+<!-- ============ CART SIDEBAR ============ -->
+<div class="cart-overlay" id="cart-overlay" onclick="cart.close()"></div>
+<aside class="cart-sidebar" id="cart-sidebar">
+  <div class="p-6 border-b border-white/10 flex items-center justify-between">
+    <div>
+      <h3 class="text-xl font-bold">Your Cart</h3>
+      <p class="text-xs text-gray-500 mt-1" id="cart-items-count">0 items</p>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="cart.close()">✕</button>
+  </div>
+  <div class="flex-1 overflow-y-auto p-6" id="cart-items"></div>
+  <div class="p-6 border-t border-white/10" id="cart-footer"></div>
+</aside>
+
+<!-- ============ AUTH MODAL ============ -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-2xl font-bold" id="auth-title">Welcome back</h3>
+      <button class="btn btn-ghost btn-sm" onclick="auth.closeModal()">✕</button>
+    </div>
+    <form id="auth-form" onsubmit="auth.submit(event)">
+      <div id="auth-fields"></div>
+      <button type="submit" class="btn btn-primary w-full mt-6" id="auth-submit">Sign In</button>
+    </form>
+    <div class="text-center mt-6 text-sm text-gray-400">
+      <span id="auth-switch-text">Don't have an account?</span>
+      <button class="text-orange-400 font-semibold ml-1" onclick="auth.toggleMode()" id="auth-switch-btn">Sign up</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PRODUCT DETAIL MODAL ============ -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal max-w-2xl">
+    <div id="product-modal-content"></div>
+  </div>
+</div>
+
+<!-- ============ ADMIN PRODUCT MODAL ============ -->
+<div class="modal-overlay" id="admin-product-modal">
+  <div class="modal">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-2xl font-bold" id="admin-product-title">Add Product</h3>
+      <button class="btn btn-ghost btn-sm" onclick="admin.closeProductModal()">✕</button>
+    </div>
+    <form id="admin-product-form" onsubmit="admin.saveProduct(event)">
+      <input type="hidden" id="prod-id"/>
+      <div class="space-y-4">
+        <div>
+          <label class="label">Name</label>
+          <input type="text" id="prod-name" class="input" required/>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="label">Price (₹)</label>
+            <input type="number" id="prod-price" class="input" step="0.01" min="0" required/>
+          </div>
+          <div>
+            <label class="label">Category</label>
+            <select id="prod-category" class="input" required>
+              <option value="Burgers">Burgers</option>
+              <option value="Pizza">Pizza</option>
+              <option value="Asian">Asian</option>
+              <option value="Salads">Salads</option>
+              <option value="Beverages">Beverages</option>
+              <option value="Desserts">Desserts</option>
+              <option value="Snacks">Snacks</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="label">Emoji Icon</label>
+          <input type="text" id="prod-emoji" class="input" placeholder="🍔" maxlength="4" required/>
+        </div>
+        <div>
+          <label class="label">Description</label>
+          <textarea id="prod-desc" class="input" rows="3" required></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="label">Prep Time (min)</label>
+            <input type="number" id="prod-time" class="input" min="1" required/>
+          </div>
+          <div>
+            <label class="label">Veg?</label>
+            <select id="prod-veg" class="input">
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button type="button" class="btn btn-ghost flex-1" onclick="admin.closeProductModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary flex-1">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ FOOTER ============ -->
+<footer class="border-t border-white/5 py-12 px-6 mt-12">
+  <div class="max-w-7xl mx-auto grid md:grid-cols-4 gap-8">
+    <div>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:var(--grad)">🍔</div>
+        <div class="font-bold text-lg">Campus<span class="grad-text">Bites</span></div>
+      </div>
+      <p class="text-sm text-gray-500">The smart way to order food on campus. Built by students, for students.</p>
+    </div>
+    <div>
+      <h4 class="font-bold mb-4 text-sm">Product</h4>
+      <ul class="space-y-2 text-sm text-gray-500">
+        <li class="hover:text-white cursor-pointer" onclick="router.go('menu')">Menu</li>
+        <li class="hover:text-white cursor-pointer" onclick="router.go('orders')">Track Order</li>
+        <li class="hover:text-white cursor-pointer">Loyalty Program</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="font-bold mb-4 text-sm">Company</h4>
+      <ul class="space-y-2 text-sm text-gray-500">
+        <li class="hover:text-white cursor-pointer" onclick="router.go('about')">About</li>
+        <li class="hover:text-white cursor-pointer">Careers</li>
+        <li class="hover:text-white cursor-pointer">Contact</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="font-bold mb-4 text-sm">Legal</h4>
+      <ul class="space-y-2 text-sm text-gray-500">
+        <li class="hover:text-white cursor-pointer">Privacy Policy</li>
+        <li class="hover:text-white cursor-pointer">Terms of Service</li>
+        <li class="hover:text-white cursor-pointer">Cookie Policy</li>
+      </ul>
+    </div>
+  </div>
+  <div class="max-w-7xl mx-auto mt-12 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+    <p class="text-sm text-gray-500">© 2026 CampusBites. Crafted with 🧡 on campus.</p>
+    <div class="flex gap-4 text-gray-500">
+      <span class="hover:text-white cursor-pointer">Twitter</span>
+      <span class="hover:text-white cursor-pointer">Instagram</span>
+      <span class="hover:text-white cursor-pointer">LinkedIn</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   DATABASE LAYER (localStorage-backed, simulates REST API)
+   In production, swap these with fetch() calls to your backend.
+   ============================================================ */
+const DB = {
+  _key: 'campusbites_db_v1',
+  _get(){
+    const raw = localStorage.getItem(this._key);
+    if(raw) return JSON.parse(raw);
+    const seed = this._seed();
+    this._save(seed);
+    return seed;
+  },
+  _save(data){ localStorage.setItem(this._key, JSON.stringify(data)); },
+  _seed(){
+    // Simple hash for demo passwords (NOT production-grade — use bcrypt server-side)
+    const hash = s => btoa(unescape(encodeURIComponent(s))).split('').reverse().join('').slice(0,24);
+    return {
+      users: [
+        { id:'u_admin', name:'Admin', email:'admin@campus.edu', password:hash('admin123'), role:'admin', createdAt:Date.now()-86400000*30, phone:'+91 9876543210' },
+        { id:'u_demo', name:'Demo Student', email:'student@campus.edu', password:hash('student123'), role:'student', createdAt:Date.now()-86400000*10, phone:'+91 9988776655' }
+      ],
+      products: [
+        { id:'p1', name:'Classic Cheese Burger', price:149, category:'Burgers', emoji:'🍔', desc:'Juicy beef patty, melted cheddar, fresh lettuce, tomato, and our signature sauce.', time:12, veg:false, popular:true, stock:50 },
+        { id:'p2', name:'Margherita Pizza', price:229, category:'Pizza', emoji:'🍕', desc:'Hand-tossed crust, San Marzano tomato sauce, fresh mozzarella, basil.', time:18, veg:true, popular:true, stock:30 },
+        { id:'p3', name:'Spicy Chicken Wings', price:199, category:'Snacks', emoji:'🍗', desc:'Crispy fried wings tossed in our fiery buffalo sauce. Served with ranch.', time:15, veg:false, popular:true, stock:40 },
+        { id:'p4', name:'Caesar Salad', price:179, category:'Salads', emoji:'🥗', desc:'Crisp romaine, parmesan, croutons, grilled chicken, classic Caesar dressing.', time:8, veg:false, popular:false, stock:25 },
+        { id:'p5', name:'Veggie Wrap', price:129, category:'Snacks', emoji:'🌯', desc:'Whole wheat wrap loaded with grilled veggies, hummus, and feta cheese.', time:10, veg:true, popular:false, stock:35 },
+        { id:'p6', name:'Iced Coffee', price:89, category:'Beverages', emoji:'☕', desc:'Cold-brewed arabica coffee over ice. Smooth, bold, refreshing.', time:3, veg:true, popular:true, stock:100 },
+        { id:'p7', name:'Chocolate Brownie', price:79, category:'Desserts', emoji:'🍫', desc:'Warm, fudgy brownie with a molten chocolate center. Served with vanilla ice cream.', time:5, veg:true, popular:true, stock:45 },
+        { id:'p8', name:'Pad Thai', price:219, category:'Asian', emoji:'🍜', desc:'Rice noodles stir-fried with shrimp, tofu, peanuts, bean sprouts, tamarind sauce.', time:15, veg:false, popular:false, stock:20 },
+        { id:'p9', name:'Mango Smoothie', price:109, category:'Beverages', emoji:'🥭', desc:'Fresh Alphonso mangoes blended with yogurt and a hint of honey.', time:4, veg:true, popular:true, stock:60 },
+        { id:'p10', name:'Pepperoni Pizza', price:259, category:'Pizza', emoji:'🍕', desc:'Classic pepperoni with mozzarella on our signature tomato base.', time:18, veg:false, popular:true, stock:28 },
+        { id:'p11', name:'French Fries', price:79, category:'Snacks', emoji:'🍟', desc:'Golden crispy fries seasoned with sea salt. Add cheese or peri-peri.', time:7, veg:true, popular:true, stock:80 },
+        { id:'p12', name:'Tiramisu', price:149, category:'Desserts', emoji:'🍰', desc:'Layers of espresso-soaked ladyfingers and mascarpone cream, dusted with cocoa.', time:5, veg:true, popular:false, stock:22 }
+      ],
+      orders: [
+        { id:'o_demo1', userId:'u_demo', items:[{id:'p1',qty:2,name:'Classic Cheese Burger',price:149,emoji:'🍔'},{id:'p6',qty:1,name:'Iced Coffee',price:89,emoji:'☕'}], total:387, status:'delivered', createdAt:Date.now()-86400000*2, address:'Library, 2nd Floor', paymentMethod:'Campus Card' },
+        { id:'o_demo2', userId:'u_demo', items:[{id:'p2',qty:1,name:'Margherita Pizza',price:229,emoji:'🍕'}], total:229, status:'preparing', createdAt:Date.now()-3600000, address:'CS Block, Room 304', paymentMethod:'UPI' }
+      ],
+      sessions: {}
+    };
+  },
+  // API-like methods
+  async findAll(collection){ return this._get()[collection] || []; },
+  async findById(collection, id){ return (this._get()[collection] || []).find(x=>x.id===id); },
+  async findBy(collection, predicate){ return (this._get()[collection] || []).filter(predicate); },
+  async insert(collection, item){
+    const data = this._get();
+    data[collection].push(item);
+    this._save(data);
+    return item;
+  },
+  async update(collection, id, updates){
+    const data = this._get();
+    const idx = data[collection].findIndex(x=>x.id===id);
+    if(idx===-1) throw new Error('Not found');
+    data[collection][idx] = {...data[collection][idx], ...updates};
+    this._save(data);
+    return data[collection][idx];
+  },
+  async delete(collection, id){
+    const data = this._get();
+    data[collection] = data[collection].filter(x=>x.id!==id);
+    this._save(data);
+  }
+};
+
+/* ============================================================
+   AUTH MODULE
+   ============================================================ */
+const auth = {
+  currentUser: null,
+  mode: 'login',
+  hash(s){ return btoa(unescape(encodeURIComponent(s))).split('').reverse().join('').slice(0,24); },
+  init(){
+    const sid = sessionStorage.getItem('cb_session');
+    if(sid){
+      DB.findById('users', sid).then(u=>{
+        if(u){ this.currentUser = u; this.render(); }
+      });
+    } else {
+      this.render();
+    }
+  },
+  render(){
+    const area = document.getElementById('auth-area');
+    if(this.currentUser){
+      const isAdmin = this.currentUser.role === 'admin';
+      area.innerHTML = `
+        <div class="flex items-center gap-2">
+          ${isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="router.go('admin')">⚙️ Admin</button>` : ''}
+          <div class="relative group">
+            <button class="btn btn-ghost btn-sm flex items-center gap-2">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style="background:var(--grad)">${this.currentUser.name[0]}</div>
+              <span class="hidden md:inline">${this.currentUser.name.split(' ')[0]}</span>
+            </button>
+            <div class="absolute right-0 top-full mt-2 w-48 glass-strong rounded-xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+              <div class="px-4 py-2 border-b border-white/10">
+                <div class="text-sm font-semibold">${this.currentUser.name}</div>
+                <div class="text-xs text-gray-500">${this.currentUser.email}</div>
+              </div>
+              <button class="w-full text-left px-4 py-2 text-sm hover:bg-white/5" onclick="router.go('orders')">My Orders</button>
+              <button class="w-full text-left px-4 py-2 text-sm hover:bg-white/5 text-red-400" onclick="auth.logout()">Sign out</button>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      area.innerHTML = `
+        <button class="btn btn-ghost btn-sm hidden md:inline-flex" onclick="auth.openModal('login')">Sign in</button>
+        <button class="btn btn-primary btn-sm" onclick="auth.openModal('signup')">Get started</button>`;
+    }
+  },
+  openModal(mode){
+    this.mode = mode;
+    document.getElementById('auth-modal').classList.add('open');
+    this._renderForm();
+  },
+  closeModal(){ document.getElementById('auth-modal').classList.remove('open'); },
+  toggleMode(){
+    this.mode = this.mode === 'login' ? 'signup' : 'login';
+    this._renderForm();
+  },
+  _renderForm(){
+    const isLogin = this.mode === 'login';
+    document.getElementById('auth-title').textContent = isLogin ? 'Welcome back' : 'Create account';
+    document.getElementById('auth-submit').textContent = isLogin ? 'Sign In' : 'Create Account';
+    document.getElementById('auth-switch-text').textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
+    document.getElementById('auth-switch-btn').textContent = isLogin ? 'Sign up' : 'Sign in';
+    document.getElementById('auth-fields').innerHTML = isLogin ? `
+      <div class="space-y-4">
+        <div><label class="label">Email</label><input type="email" id="f-email" class="input" required placeholder="you@campus.edu"/></div>
+        <div><label class="label">Password</label><input type="password" id="f-password" class="input" required placeholder="••••••••"/></div>
+      </div>
+      <div class="text-xs text-gray-500 mt-4">Demo: admin@campus.edu / admin123</div>
+    ` : `
+      <div class="space-y-4">
+        <div><label class="label">Full name</label><input type="text" id="f-name" class="input" required/></div>
+        <div><label class="label">Email</label><input type="email" id="f-email" class="input" required/></div>
+        <div><label class="label">Phone</label><input type="tel" id="f-phone" class="input" required placeholder="+91 ..."/></div>
+        <div><label class="label">Password</label><input type="password" id="f-password" class="input" required minlength="6"/></div>
+      </div>
+    `;
+  },
+  async submit(e){
+    e.preventDefault();
+    const email = document.getElementById('f-email').value.trim().toLowerCase();
+    const password = document.getElementById('f-password').value;
+    try {
+      if(this.mode === 'login'){
+        const users = await DB.findAll('users');
+        const user = users.find(u=>u.email===email && u.password===this.hash(password));
+        if(!user){ toast.show('Invalid credentials','error'); return; }
+        this.currentUser = user;
+        sessionStorage.setItem('cb_session', user.id);
+        toast.show(`Welcome back, ${user.name.split(' ')[0]}!`,'success');
+      } else {
+        const name = document.getElementById('f-name').value.trim();
+        const phone = document.getElementById('f-phone').value.trim();
+        const users = await DB.findAll('users');
+        if(users.some(u=>u.email===email)){ toast.show('Email already registered','error'); return; }
+        const newUser = {
+          id:'u_'+Date.now(), name, email, phone,
+          password:this.hash(password), role:'student', createdAt:Date.now()
+        };
+        await DB.insert('users', newUser);
+        this.currentUser = newUser;
+        sessionStorage.setItem('cb_session', newUser.id);
+        toast.show(`Welcome, ${name.split(' ')[0]}!`,'success');
+      }
+      this.closeModal();
+      this.render();
+      if(this.currentUser.role === 'admin') router.go('admin');
+    } catch(err){ toast.show(err.message,'error'); }
+  },
+  logout(){
+    this.currentUser = null;
+    sessionStorage.removeItem('cb_session');
+    this.render();
+    router.go('home');
+    toast.show('Signed out','info');
+  }
+};
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+const toast = {
+  show(msg, type='info'){
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    const icon = type==='success' ? '✓' : type==='error' ? '✕' : 'ℹ';
+    el.innerHTML = `<div class="w-8 h-8 rounded-full flex items-center justify-center font-bold" style="background:var(--${type==='success'?'success':type==='error'?'danger':'accent'});color:#fff">${icon}</div><div class="flex-1 text-sm">${msg}</div>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(()=>{ el.classList.add('removing'); setTimeout(()=>el.remove(),300); }, 3000);
+  }
+};
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+const router = {
+  go(page){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    const target = document.getElementById('page-'+page);
+    if(target){
+      target.classList.add('active');
+      window.scrollTo({top:0, behavior:'smooth'});
+      document.querySelectorAll('[data-nav]').forEach(n=>{
+        n.classList.toggle('active', n.dataset.nav===page);
+      });
+      if(page==='menu') menu.render();
+      if(page==='orders') orders.render();
+      if(page==='admin') admin.render();
+      if(page==='home') home.initCounters();
+    }
+  }
+};
+
+/* ============================================================
+   MENU
+   ============================================================ */
+const menu = {
+  currentCategory: 'All',
+  currentSearch: '',
+  currentSort: 'popular',
+  async render(){
+    const products = await DB.findAll('products');
+    const categories = ['All', ...new Set(products.map(p=>p.category))];
+    const bar = document.getElementById('categories-bar');
+    bar.innerHTML = categories.map(c=>`<div class="cat-pill ${c===this.currentCategory?'active':''}" onclick="menu.setCategory('${c}')">${c}</div>`).join('');
+
+    let filtered = products;
+    if(this.currentCategory !== 'All') filtered = filtered.filter(p=>p.category===this.currentCategory);
+    if(this.currentSearch) filtered = filtered.filter(p=>p.name.toLowerCase().includes(this.currentSearch.toLowerCase()) || p.desc.toLowerCase().includes(this.currentSearch.toLowerCase()));
+    if(this.currentSort==='price-asc') filtered.sort((a,b)=>a.price-b.price);
+    else if(this.currentSort==='price-desc') filtered.sort((a,b)=>b.price-a.price);
+    else if(this.currentSort==='name') filtered.sort((a,b)=>a.name.localeCompare(b.name));
+    else filtered.sort((a,b)=>(b.popular?1:0)-(a.popular?1:0));
+
+    const grid = document.getElementById('products-grid');
+    if(filtered.length===0){
+      grid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-500">No items found.</div>`;
+      return;
+    }
+    grid.innerHTML = filtered.map(p=>`
+      <div class="product-card reveal-scale" onclick="menu.showDetail('${p.id}')">
+        ${p.popular?'<div class="badge">🔥 POPULAR</div>':''}
+        <div class="img-wrap"><span class="emoji">${p.emoji}</span></div>
+        <div class="p-5">
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <h3 class="font-bold text-lg leading-tight">${p.name}</h3>
+            <span class="text-xs px-2 py-1 rounded-full" style="background:${p.veg?'rgba(34,197,94,.15);color:#4ade80':'rgba(239,68,68,.15);color:#f87171'}">${p.veg?'VEG':'NON-VEG'}</span>
+          </div>
+          <p class="text-sm text-gray-500 line-clamp-2 mb-4">${p.desc}</p>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xl font-bold grad-text">₹${p.price}</div>
+              <div class="text-xs text-gray-500">⏱ ${p.time} min</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();cart.add('${p.id}')">+ Add</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    observeReveals();
+  },
+  setCategory(c){ this.currentCategory = c; this.render(); },
+  async showDetail(id){
+    const p = await DB.findById('products', id);
+    if(!p) return;
+    document.getElementById('product-modal-content').innerHTML = `
+      <button class="btn btn-ghost btn-sm absolute top-4 right-4" onclick="document.getElementById('product-modal').classList.remove('open')">✕</button>
+      <div class="h-64 rounded-2xl flex items-center justify-center text-9xl mb-6" style="background:linear-gradient(135deg,#1a1a24,#0f0f17)">${p.emoji}</div>
+      <div class="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-3xl font-bold mb-2">${p.name}</h2>
+          <div class="flex items-center gap-3 text-sm text-gray-500">
+            <span>${p.category}</span>•<span>⏱ ${p.time} min</span>•
+            <span style="color:${p.veg?'#4ade80':'#f87171'}">${p.veg?'Vegetarian':'Non-vegetarian'}</span>
+          </div>
+        </div>
+        <div class="text-3xl font-bold grad-text">₹${p.price}</div>
+      </div>
+      <p class="text-gray-400 mb-6">${p.desc}</p>
+      <div class="flex gap-3">
+        <button class="btn btn-ghost flex-1" onclick="document.getElementById('product-modal').classList.remove('open')">Close</button>
+        <button class="btn btn-primary flex-1" onclick="cart.add('${p.id}');document.getElementById('product-modal').classList.remove('open')">Add to Cart</button>
+      </div>
+    `;
+    document.getElementById('product-modal').classList.add('open');
+  }
+};
+
+/* ============================================================
+   CART
+   ============================================================ */
+const cart = {
+  items: JSON.parse(localStorage.getItem('cb_cart')||'[]'),
+  open(){
+    document.getElementById('cart-sidebar').classList.add('open');
+    document.getElementById('cart-overlay').classList.add('open');
+    this.render();
+  },
+  close(){
+    document.getElementById('cart-sidebar').classList.remove('open');
+    document.getElementById('cart-overlay').classList.remove('open');
+  },
+  async add(productId){
+    const p = await DB.findById('products', productId);
+    if(!p) return;
+    const existing = this.items.find(i=>i.id===productId);
+    if(existing) existing.qty++;
+    else this.items.push({id:p.id, name:p.name, price:p.price, emoji:p.emoji, qty:1});
+    this._save();
+    toast.show(`${p.name} added to cart`,'success');
+    this.render();
+  },
+  updateQty(id, delta){
+    const item = this.items.find(i=>i.id===id);
+    if(!item) return;
+    item.qty += delta;
+    if(item.qty <= 0) this.items = this.items.filter(i=>i.id!==id);
+    this._save();
+    this.render();
+  },
+  remove(id){
+    this.items = this.items.filter(i=>i.id!==id);
+    this._save();
+    this.render();
+  },
+  clear(){ this.items = []; this._save(); this.render(); },
+  _save(){
+    localStorage.setItem('cb_cart', JSON.stringify(this.items));
+    const count = this.items.reduce((s,i)=>s+i.qty,0);
+    document.getElementById('cart-count').textContent = count;
+  },
+  getTotal(){ return this.items.reduce((s,i)=>s+i.price*i.qty,0); },
+  render(){
+    this._save();
+    const list = document.getElementById('cart-items');
+    const footer = document.getElementById('cart-footer');
+    document.getElementById('cart-items-count').textContent = `${this.items.length} item${this.items.length!==1?'s':''}`;
+    if(this.items.length===0){
+      list.innerHTML = `<div class="text-center py-16"><div class="text-6xl mb-4">🛒</div><p class="text-gray-500">Your cart is empty</p></div>`;
+      footer.innerHTML = '';
+      return;
+    }
+    list.innerHTML = this.items.map(i=>`
+      <div class="flex gap-3 py-4 border-b border-white/5">
+        <div class="w-14 h-14 rounded-xl flex items-center justify-center text-3xl flex-shrink-0" style="background:var(--surface)">${i.emoji}</div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-sm truncate">${i.name}</div>
+          <div class="text-xs text-gray-500">₹${i.price} each</div>
+          <div class="flex items-center justify-between mt-2">
+            <div class="qty-control">
+              <button class="qty-btn" onclick="cart.updateQty('${i.id}',-1)">−</button>
+              <span class="qty-val">${i.qty}</span>
+              <button class="qty-btn" onclick="cart.updateQty('${i.id}',1)">+</button>
+            </div>
+            <div class="font-bold text-sm">₹${i.price*i.qty}</div>
+          </div>
+        </div>
+        <button class="text-gray-500 hover:text-red-400 text-sm" onclick="cart.remove('${i.id}')">✕</button>
+      </div>
+    `).join('');
+    const subtotal = this.getTotal();
+    const delivery = subtotal > 300 ? 0 : 25;
+    const taxes = Math.round(subtotal * 0.05);
+    const total = subtotal + delivery + taxes;
+    footer.innerHTML = `
+      <div class="space-y-2 mb-4 text-sm">
+        <div class="flex justify-between text-gray-400"><span>Subtotal</span><span>₹${subtotal}</span></div>
+        <div class="flex justify-between text-gray-400"><span>Delivery</span><span>${delivery===0?'<span class="text-green-400">FREE</span>':'₹'+delivery}</span></div>
+        <div class="flex justify-between text-gray-400"><span>Taxes (5%)</span><span>₹${taxes}</span></div>
+        <div class="flex justify-between font-bold text-lg pt-2 border-t border-white/10"><span>Total</span><span class="grad-text">₹${total}</span></div>
+      </div>
+      <button class="btn btn-primary w-full" onclick="cart.checkout()">Checkout →</button>
+    `;
+  },
+  async checkout(){
+    if(!auth.currentUser){
+      this.close();
+      auth.openModal('login');
+      toast.show('Please sign in to checkout','info');
+      return;
+    }
+    if(this.items.length===0){ toast.show('Cart is empty','error'); return; }
+    const subtotal = this.getTotal();
+    const delivery = subtotal > 300 ? 0 : 25;
+    const taxes = Math.round(subtotal * 0.05);
+    const total = subtotal + delivery + taxes;
+    document.getElementById('product-modal-content').innerHTML = `
+      <button class="btn btn-ghost btn-sm absolute top-4 right-4" onclick="document.getElementById('product-modal').classList.remove('open')">✕</button>
+      <h2 class="text-2xl font-bold mb-6">Checkout</h2>
+      <form id="checkout-form" onsubmit="cart.confirmCheckout(event)">
+        <div class="space-y-4">
+          <div><label class="label">Delivery Location</label>
+            <input type="text" id="co-address" class="input" required placeholder="e.g., CS Block, Room 304"/>
+          </div>
+          <div><label class="label">Payment Method</label>
+            <select id="co-payment" class="input" required>
+              <option>Campus Card</option><option>UPI</option><option>Cash on Delivery</option><option>Wallet</option>
+            </select>
+          </div>
+          <div><label class="label">Special Instructions (optional)</label>
+            <textarea id="co-notes" class="input" rows="2" placeholder="Any allergies or requests?"></textarea>
+          </div>
+          <div class="glass rounded-xl p-4 space-y-2 text-sm">
+            <div class="flex justify-between text-gray-400"><span>Items (${this.items.length})</span><span>₹${subtotal}</span></div>
+            <div class="flex justify-between text-gray-400"><span>Delivery</span><span>${delivery===0?'FREE':'₹'+delivery}</span></div>
+            <div class="flex justify-between text-gray-400"><span>Taxes</span><span>₹${taxes}</span></div>
+            <div class="flex justify-between font-bold text-lg pt-2 border-t border-white/10"><span>Total</span><span class="grad-text">₹${total}</span></div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary w-full mt-6">Place Order • ₹${total}</button>
+      </form>
+    `;
+    document.getElementById('product-modal').classList.add('open');
+  },
+  async confirmCheckout(e){
+    e.preventDefault();
+    const address = document.getElementById('co-address').value;
+    const paymentMethod = document.getElementById('co-payment').value;
+    const notes = document.getElementById('co-notes').value;
+    const order = {
+      id:'o_'+Date.now(),
+      userId: auth.currentUser.id,
+      items: this.items.map(i=>({id:i.id,qty:i.qty,name:i.name,price:i.price,emoji:i.emoji})),
+      total: this.getTotal() + (this.getTotal()>300?0:25) + Math.round(this.getTotal()*0.05),
+      status:'pending',
+      createdAt: Date.now(),
+      address, paymentMethod, notes
+    };
+    await DB.insert('orders', order);
+    this.clear();
+    document.getElementById('product-modal').classList.remove('open');
+    toast.show('Order placed! 🎉','success');
+    router.go('orders');
+  }
+};
+
+/* ============================================================
+   ORDERS (Student view)
+   ============================================================ */
+const orders = {
+  async render(){
+    const list = document.getElementById('orders-list');
+    if(!auth.currentUser){
+      list.innerHTML = `
+        <div class="glass rounded-2xl p-12 text-center">
+          <div class="text-6xl mb-4">🔒</div>
+          <h3 class="text-2xl font-bold mb-2">Sign in to view your orders</h3>
+          <p class="text-gray-400 mb-6">Track your current and past orders in real-time.</p>
+          <button class="btn btn-primary" onclick="auth.openModal('login')">Sign In</button>
+        </div>`;
+      return;
+    }
+    const all = await DB.findAll('orders');
+    const mine = all.filter(o=>o.userId===auth.currentUser.id).sort((a,b)=>b.createdAt-a.createdAt);
+    if(mine.length===0){
+      list.innerHTML = `
+        <div class="glass rounded-2xl p-12 text-center">
+          <div class="text-6xl mb-4">📦</div>
+          <h3 class="text-2xl font-bold mb-2">No orders yet</h3>
+          <p class="text-gray-400 mb-6">Your order history will appear here.</p>
+          <button class="btn btn-primary" onclick="router.go('menu')">Browse Menu</button>
+        </div>`;
+      return;
+    }
+    list.innerHTML = mine.map(o=>this._renderOrder(o)).join('');
+  },
+  _renderOrder(o){
+    const progress = {pending:25, preparing:50, ready:75, delivered:100, cancelled:0}[o.status] || 0;
+    const steps = ['pending','preparing','ready','delivered'];
+    const stepLabels = {pending:'Order Placed', preparing:'Preparing', ready:'Ready for Pickup', delivered:'Delivered'};
+    const currentStep = steps.indexOf(o.status);
+    return `
+      <div class="glass rounded-2xl p-6 mb-4">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+          <div>
+            <div class="text-xs text-gray-500 mb-1">Order #${o.id.slice(-6).toUpperCase()}</div>
+            <div class="text-sm text-gray-400">${new Date(o.createdAt).toLocaleString()}</div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="status status-${o.status}">${o.status}</span>
+            <div class="text-xl font-bold grad-text">₹${o.total}</div>
+          </div>
+        </div>
+        <div class="mb-4">
+          <div class="flex justify-between text-xs text-gray-500 mb-2">
+            ${steps.map((s,i)=>`<span class="${i<=currentStep?'text-orange-400':''}">${stepLabels[s]}</span>`).join('')}
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
+        </div>
+        <div class="space-y-2 mb-4">
+          ${o.items.map(i=>`
+            <div class="flex items-center gap-3 text-sm">
+              <span class="text-2xl">${i.emoji}</span>
+              <span class="flex-1">${i.name} <span class="text-gray-500">× ${i.qty}</span></span>
+              <span class="font-semibold">₹${i.price*i.qty}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="flex flex-wrap gap-4 text-xs text-gray-500 pt-4 border-t border-white/5">
+          <span>📍 ${o.address}</span>
+          <span>💳 ${o.paymentMethod}</span>
+          ${o.notes?`<span>📝 ${o.notes}</span>`:''}
+        </div>
+      </div>
+    `;
+  }
+};
+
+/* ============================================================
+   ADMIN
+   ============================================================ */
+const admin = {
+  currentTab: 'orders',
+  async render(){
+    if(!auth.currentUser || auth.currentUser.role !== 'admin'){
+      document.getElementById('admin-content').innerHTML = `
+        <div class="glass rounded-2xl p-12 text-center">
+          <div class="text-6xl mb-4">🔐</div>
+          <h3 class="text-2xl font-bold mb-2">Admin access required</h3>
+          <p class="text-gray-400 mb-6">Sign in with an admin account to access this panel.</p>
+          <button class="btn btn-primary" onclick="auth.openModal('login')">Sign In as Admin</button>
+          <div class="text-xs text-gray-500 mt-4">Demo: admin@campus.edu / admin123</div>
+        </div>`;
+      return;
+    }
+    await this._renderStats();
+    this.switchTab(this.currentTab);
+  },
+  async _renderStats(){
+    const [orders, products, users] = await Promise.all([DB.findAll('orders'), DB.findAll('products'), DB.findAll('users')]);
+    const revenue = orders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+o.total,0);
+    const pending = orders.filter(o=>o.status==='pending' || o.status==='preparing').length;
+    const stats = document.getElementById('admin-stats');
+    stats.innerHTML = `
+      <div class="stat-card reveal">
+        <div class="text-sm text-gray-500 mb-1">Total Revenue</div>
+        <div class="text-3xl font-bold grad-text">₹${revenue.toLocaleString()}</div>
+        <div class="text-xs text-green-400 mt-2">↑ 12.5% from last week</div>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.1s">
+        <div class="text-sm text-gray-500 mb-1">Total Orders</div>
+        <div class="text-3xl font-bold">${orders.length}</div>
+        <div class="text-xs text-gray-500 mt-2">${pending} active now</div>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.2s">
+        <div class="text-sm text-gray-500 mb-1">Products</div>
+        <div class="text-3xl font-bold">${products.length}</div>
+        <div class="text-xs text-gray-500 mt-2">${products.filter(p=>p.stock<10).length} low stock</div>
+      </div>
+      <div class="stat-card reveal" style="transition-delay:.3s">
+        <div class="text-sm text-gray-500 mb-1">Users</div>
+        <div class="text-3xl font-bold">${users.length}</div>
+        <div class="text-xs text-gray-500 mt-2">${users.filter(u=>u.role==='student').length} students</div>
+      </div>
+    `;
+  },
+  switchTab(tab){
+    this.currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
+    this._renderTab();
+  },
+  async _renderTab(){
+    const c = document.getElementById('admin-content');
+    if(this.currentTab==='orders') await this._renderOrders(c);
+    else if(this.currentTab==='products') await this._renderProducts(c);
+    else if(this.currentTab==='users') await this._renderUsers(c);
+    else if(this.currentTab==='analytics') await this._renderAnalytics(c);
+  },
+  async _renderOrders(c){
+    const all = await DB.findAll('orders');
+    const users = await DB.findAll('users');
+    const sorted = [...all].sort((a,b)=>b.createdAt-a.createdAt);
+    if(sorted.length===0){ c.innerHTML = `<div class="glass rounded-2xl p-12 text-center text-gray-500">No orders yet.</div>`; return; }
+    c.innerHTML = `
+      <div class="table-wrap overflow-x-auto">
+        <table>
+          <thead><tr>
+            <th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${sorted.map(o=>{
+              const u = users.find(x=>x.id===o.userId);
+              return `
+                <tr>
+                  <td class="font-mono text-xs">#${o.id.slice(-6).toUpperCase()}</td>
+                  <td>${u?u.name:'Unknown'}<div class="text-xs text-gray-500">${u?u.email:''}</div></td>
+                  <td class="text-sm">${o.items.map(i=>i.emoji).join(' ')} <span class="text-gray-500">(${o.items.length})</span></td>
+                  <td class="font-bold">₹${o.total}</td>
+                  <td><span class="status status-${o.status}">${o.status}</span></td>
+                  <td class="text-xs text-gray-500">${new Date(o.createdAt).toLocaleString()}</td>
+                  <td>
+                    <select class="input text-xs py-1" onchange="admin.updateOrderStatus('${o.id}', this.value)" style="width:auto">
+                      ${['pending','preparing','ready','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}
+                    </select>
+                  </td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  },
+  async updateOrderStatus(id, status){
+    await DB.update('orders', id, {status});
+    toast.show(`Order ${status}`,'success');
+    this._renderTab();
+    this._renderStats();
+  },
+  async _renderProducts(c){
+    const products = await DB.findAll('products');
+    c.innerHTML = `
+      <div class="table-wrap overflow-x-auto">
+        <table>
+          <thead><tr>
+            <th>Product</th><th>Category</th><th>Price</th><th>Prep Time</th><th>Stock</th><th>Popular</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${products.map(p=>`
+              <tr>
+                <td><div class="flex items-center gap-3"><span class="text-2xl">${p.emoji}</span><div><div class="font-semibold">${p.name}</div><div class="text-xs text-gray-500 max-w-xs truncate">${p.desc}</div></div></div></td>
+                <td><span class="text-xs px-2 py-1 rounded-full" style="background:var(--surface-2)">${p.category}</span></td>
+                <td class="font-bold">₹${p.price}</td>
+                <td>${p.time} min</td>
+                <td><span class="${p.stock<10?'text-red-400':'text-green-400'}">${p.stock}</span></td>
+                <td>${p.popular?'<span class="text-orange-400">🔥</span>':'<span class="text-gray-600">—</span>'}</td>
+                <td>
+                  <div class="flex gap-2">
+                    <button class="btn btn-ghost btn-sm" onclick="admin.editProduct('${p.id}')">Edit</button>
+                    <button class="btn btn-danger btn-sm" onclick="admin.deleteProduct('${p.id}')">Delete</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  },
+  openAddProduct(){
+    document.getElementById('admin-product-title').textContent = 'Add Product';
+    document.getElementById('admin-product-form').reset();
+    document.getElementById('prod-id').value = '';
+    document.getElementById('admin-product-modal').classList.add('open');
+  },
+  async editProduct(id){
+    const p = await DB.findById('products', id);
+    if(!p) return;
+    document.getElementById('admin-product-title').textContent = 'Edit Product';
+    document.getElementById('prod-id').value = p.id;
+    document.getElementById('prod-name').value = p.name;
+    document.getElementById('prod-price').value = p.price;
+    document.getElementById('prod-category').value = p.category;
+    document.getElementById('prod-emoji').value = p.emoji;
+    document.getElementById('prod-desc').value = p.desc;
+    document.getElementById('prod-time').value = p.time;
+    document.getElementById('prod-veg').value = String(p.veg);
+    document.getElementById('admin-product-modal').classList.add('open');
+  },
+  closeProductModal(){ document.getElementById('admin-product-modal').classList.remove('open'); },
+  async saveProduct(e){
+    e.preventDefault();
+    const id = document.getElementById('prod-id').value;
+    const data = {
+      name: document.getElementById('prod-name').value,
+      price: parseFloat(document.getElementById('prod-price').value),
+      category: document.getElementById('prod-category').value,
+      emoji: document.getElementById('prod-emoji').value,
+      desc: document.getElementById('prod-desc').value,
+      time: parseInt(document.getElementById('prod-time').value),
+      veg: document.getElementById('prod-veg').value === 'true'
+    };
+    if(id){
+      await DB.update('products', id, data);
+      toast.show('Product updated','success');
+    } else {
+      await DB.insert('products', {...data, id:'p_'+Date.now(), popular:false, stock:50});
+      toast.show('Product added','success');
+    }
+    this.closeProductModal();
+    this._renderTab();
+    this._renderStats();
+  },
+  async deleteProduct(id){
+    if(!confirm('Delete this product?')) return;
+    await DB.delete('products', id);
+    toast.show('Product deleted','info');
+    this._renderTab();
+    this._renderStats();
+  },
+  async _renderUsers(c){
+    const users = await DB.findAll('users');
+    const allOrders = await DB.findAll('orders');
+    c.innerHTML = `
+      <div class="table-wrap overflow-x-auto">
+        <table>
+          <thead><tr>
+            <th>User</th><th>Role</th><th>Joined</th><th>Orders</th><th>Total Spent</th>
+          </tr></thead>
+          <tbody>
+            ${users.map(u=>{
+              const userOrders = allOrders.filter(o=>o.userId===u.id);
+              const spent = userOrders.reduce((s,o)=>s+o.total,0);
+              return `
+                <tr>
+                  <td>
+                    <div class="flex items-center gap-3">
+                      <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold" style="background:var(--grad)">${u.name[0]}</div>
+                      <div><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email}</div></div>
+                    </div>
+                  </td>
+                  <td><span class="status ${u.role==='admin'?'status-preparing':'status-ready'}">${u.role}</span></td>
+                  <td class="text-xs text-gray-500">${new Date(u.createdAt).toLocaleDateString()}</td>
+                  <td>${userOrders.length}</td>
+                  <td class="font-bold">₹${spent}</td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  },
+  async _renderAnalytics(c){
+    const allOrders = await DB.findAll('orders');
+    const products = await DB.findAll('products');
+    // Revenue by day (last 7 days)
+    const days = [];
+    for(let i=6;i>=0;i--){
+      const d = new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0);
+      const next = new Date(d); next.setDate(next.getDate()+1);
+      const dayOrders = allOrders.filter(o=>o.createdAt>=d.getTime() && o.createdAt<next.getTime() && o.status!=='cancelled');
+      days.push({label:d.toLocaleDateString('en',{weekday:'short'}), total:dayOrders.reduce((s,o)=>s+o.total,0), count:dayOrders.length});
+    }
+    const max = Math.max(...days.map(d=>d.total), 1);
+    // Top products
+    const productCount = {};
+    allOrders.forEach(o=>o.items.forEach(i=>{ productCount[i.name] = (productCount[i.name]||0) + i.qty; }));
+    const topProducts = Object.entries(productCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+    c.innerHTML = `
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-bold mb-1">Revenue — Last 7 Days</h3>
+          <p class="text-sm text-gray-500 mb-6">Daily order revenue</p>
+          <div class="flex items-end gap-3 h-48">
+            ${days.map(d=>`
+              <div class="flex-1 flex flex-col items-center gap-2">
+                <div class="text-xs text-gray-500">₹${d.total}</div>
+                <div class="chart-bar w-full" style="height:${(d.total/max)*100}%;background:var(--grad)"></div>
+                <div class="text-xs text-gray-500">${d.label}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-bold mb-1">Top Selling Items</h3>
+          <p class="text-sm text-gray-500 mb-6">By quantity ordered</p>
+          <div class="space-y-4">
+            ${topProducts.length===0 ? '<div class="text-gray-500 text-sm">No data yet</div>' : topProducts.map(([name,qty],i)=>{
+              const maxQty = topProducts[0][1];
+              return `
+                <div>
+                  <div class="flex justify-between text-sm mb-1"><span>${name}</span><span class="font-bold">${qty}</span></div>
+                  <div class="h-2 rounded-full" style="background:var(--surface-2)"><div class="h-full rounded-full" style="width:${(qty/maxQty)*100}%;background:var(--grad)"></div></div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+        <div class="glass rounded-2xl p-6 lg:col-span-2">
+          <h3 class="font-bold mb-1">Order Status Distribution</h3>
+          <p class="text-sm text-gray-500 mb-6">Current order pipeline</p>
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            ${['pending','preparing','ready','delivered','cancelled'].map(s=>{
+              const count = allOrders.filter(o=>o.status===s).length;
+              return `<div class="text-center p-4 rounded-xl" style="background:var(--surface)"><div class="text-3xl font-bold grad-text">${count}</div><div class="text-xs text-gray-500 mt-1 uppercase">${s}</div></div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+  async exportData(){
+    const [orders, products, users] = await Promise.all([DB.findAll('orders'), DB.findAll('products'), DB.findAll('users')]);
+    const data = {orders, products, users, exportedAt:new Date().toISOString()};
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `campusbites-export-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.show('Data exported','success');
+  }
+};
+
+/* ============================================================
+   HOME
+   ============================================================ */
+const home = {
+  countersAnimated: false,
+  async initPopular(){
+    const products = await DB.findAll('products');
+    const popular = products.filter(p=>p.popular).slice(0,4);
+    const grid = document.getElementById('popular-grid');
+    grid.innerHTML = popular.map(p=>`
+      <div class="product-card reveal-scale" onclick="menu.showDetail('${p.id}')">
+        <div class="img-wrap"><span class="emoji">${p.emoji}</span></div>
+        <div class="p-5">
+          <h3 class="font-bold text-lg mb-1">${p.name}</h3>
+          <p class="text-sm text-gray-500 mb-3 line-clamp-2">${p.desc}</p>
+          <div class="flex items-center justify-between">
+            <div class="text-xl font-bold grad-text">₹${p.price}</div>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();cart.add('${p.id}')">+ Add</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    observeReveals();
+  },
+  initCounters(){
+    if(this.countersAnimated) return;
+    this.countersAnimated = true;
+    document.querySelectorAll('.counter').forEach(el=>{
+      const target = parseInt(el.dataset.target);
+      let current = 0;
+      const step = target / 60;
+      const tick = ()=>{
+        current += step;
+        if(current >= target){ el.textContent = target.toLocaleString(); return; }
+        el.textContent = Math.floor(current).toLocaleString();
+        requestAnimationFrame(tick);
+      };
+      tick();
+    });
+  }
+};
+
+/* ============================================================
+   THREE.JS 3D HERO
+   ============================================================ */
+function initHero3D(){
+  const canvas = document.getElementById('hero-canvas');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, canvas.clientWidth/canvas.clientHeight, 0.1, 100);
+  camera.position.z = 8;
+  const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const dir = new THREE.DirectionalLight(0xff6b35, 1.2);
+  dir.position.set(5,5,5); scene.add(dir);
+  const dir2 = new THREE.DirectionalLight(0xffb627, 0.8);
+  dir2.position.set(-5,-3,3); scene.add(dir2);
+
+  // Floating objects (abstract food-inspired shapes)
+  const objects = [];
+  const colors = [0xff6b35, 0xffb627, 0xe63946, 0x22c55e, 0x3b82f6];
+  const geos = [
+    new THREE.IcosahedronGeometry(0.6, 0),
+    new THREE.TorusGeometry(0.5, 0.2, 16, 32),
+    new THREE.OctahedronGeometry(0.6, 0),
+    new THREE.TorusKnotGeometry(0.4, 0.15, 64, 8),
+    new THREE.DodecahedronGeometry(0.5, 0),
+    new THREE.ConeGeometry(0.5, 1, 16),
+    new THREE.BoxGeometry(0.8, 0.8, 0.8)
+  ];
+  for(let i=0;i<14;i++){
+    const mat = new THREE.MeshStandardMaterial({
+      color: colors[i%colors.length],
+      metalness: 0.3,
+      roughness: 0.4,
+      emissive: colors[i%colors.length],
+      emissiveIntensity: 0.15
+    });
+    const mesh = new THREE.Mesh(geos[i%geos.length], mat);
+    mesh.position.set((Math.random()-0.5)*14, (Math.random()-0.5)*8, (Math.random()-0.5)*6);
+    mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+    mesh.userData = {
+      rx: (Math.random()-0.5)*0.01,
+      ry: (Math.random()-0.5)*0.01,
+      floatSpeed: 0.3 + Math.random()*0.5,
+      floatAmp: 0.3 + Math.random()*0.5,
+      baseY: mesh.position.y
+    };
+    scene.add(mesh);
+    objects.push(mesh);
+  }
+
+  // Mouse parallax
+  let mouseX=0, mouseY=0;
+  window.addEventListener('mousemove', e=>{
+    mouseX = (e.clientX / window.innerWidth - 0.5) * 0.5;
+    mouseY = (e.clientY / window.innerHeight - 0.5) * 0.5;
+  });
+
+  function animate(t){
+    requestAnimationFrame(animate);
+    objects.forEach(o=>{
+      o.rotation.x += o.userData.rx;
+      o.rotation.y += o.userData.ry;
+      o.position.y = o.userData.baseY + Math.sin(t*0.001*o.userData.floatSpeed)*o.userData.floatAmp;
+    });
+    camera.position.x += (mouseX*2 - camera.position.x)*0.03;
+    camera.position.y += (-mouseY*2 - camera.position.y)*0.03;
+    camera.lookAt(0,0,0);
+    renderer.render(scene, camera);
+  }
+  animate(0);
+
+  window.addEventListener('resize', ()=>{
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  });
+}
+
+/* ============================================================
+   SCROLL REVEAL
+   ============================================================ */
+function observeReveals(){
+  const els = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale');
+  const io = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        e.target.classList.add('visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, {threshold:0.1, rootMargin:'0px 0px -50px 0px'});
+  els.forEach(el=>{ if(!el.classList.contains('visible')) io.observe(el); });
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', ()=>{
+  auth.init();
+  cart._save();
+  home.initPopular();
+  home.initCounters();
+  initHero3D();
+  observeReveals();
+
+  // Search + sort listeners
+  document.getElementById('search-input').addEventListener('input', e=>{
+    menu.currentSearch = e.target.value;
+    menu.render();
+  });
+  document.getElementById('sort-select').addEventListener('change', e=>{
+    menu.currentSort = e.target.value;
+    menu.render();
+  });
+
+  // Close modals on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(m=>{
+    m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('open'); });
+  });
+
+  // Navbar shadow on scroll
+  window.addEventListener('scroll', ()=>{
+    const nav = document.getElementById('navbar');
+    if(window.scrollY > 20) nav.style.boxShadow = '0 4px 30px rgba(0,0,0,.3)';
+    else nav.style.boxShadow = 'none';
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e=>{
+    if(e.key === 'Escape'){
+      document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
+      cart.close();
+    }
+  });
+
+  // Simulate live order status updates for demo orders
+  setInterval(async ()=>{
+    const all = await DB.findAll('orders');
+    const progressing = all.find(o=>o.status==='pending' || o.status==='preparing');
+    if(progressing && Math.random() < 0.3){
+      const next = {pending:'preparing', preparing:'ready', ready:'delivered'}[progressing.status];
+      if(next){
+        await DB.update('orders', progressing.id, {status:next});
+        if(auth.currentUser && auth.currentUser.id === progressing.userId){
+          toast.show(`Order #${progressing.id.slice(-6).toUpperCase()} is now ${next}`, 'info');
+          if(document.getElementById('page-orders').classList.contains('active')) orders.render();
+        }
+      }
+    }
+  }, 15000);
+});
+</script>
+</body>
+</html>
